@@ -17,9 +17,12 @@ This is the basic game: it does not use bets, chips, insurance, doubling down, o
 
 ## Project responsibilities
 
-- `Program.cs` starts the application and connects the user interface, game, and storage.
-- `ConsoleUI` handles console input and output.
-- `Game` coordinates rounds, turns, and outcomes.
+- `Program.cs` starts the application.
+- `Game` coordinates the main menu, player sessions, and round lifecycle.
+- `GameTableUI` renders the active table and handles gameplay navigation.
+- `ConsoleUI` handles shared console screens and saved-player selection.
+- `PlayerSessionService` creates and loads players and coordinates statistics persistence.
+- `RoundResultFormatter` formats the outcomes resolved by a round.
 - `Player` and `Dealer` represent the people playing; `Participant` contains behavior shared by both.
 - `Deck`, `Hand`, and `Card` handle cards, dealing, and hand contents.
 - `GameStorage` loads and saves player statistics in `player-results.json`.
