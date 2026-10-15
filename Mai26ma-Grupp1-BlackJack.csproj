@@ -12,4 +12,14 @@
     <PackageReference Include="Spectre.Console" Version="0.57.2" />
   </ItemGroup>
 
+  <ItemGroup>
+    <None Update="blackjack-rules.json">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+  </ItemGroup>
+
+  <ItemGroup>
+    <Compile Remove="Test\**\*.cs" />
+  </ItemGroup>
+
 </Project>
