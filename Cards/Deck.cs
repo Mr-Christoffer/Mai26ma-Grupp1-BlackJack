@@ -1,10 +1,17 @@
  class Deck
 {
-    public List<Card> DeckCards { get; } = [];
+     public RuleSet Rules { get; }
+     public List<Card> DeckCards { get; } = [];
     public List<Card> DiscardedCards { get; } = [];
     public List<Hand> ListOfHands { get; } = [];
     public int RunningCount;
     public double TrueCount;
+
+    public Deck(RuleSet? rules = null)
+    {
+        Rules = rules ?? RuleSet.Default;
+        Rules.Validate();
+    }
 
     public Hand CreateHand()
     {
@@ -15,7 +22,7 @@
 
     public void CreateDeck()
     {
-        for (int i = 0; i < 6; i++)
+        for (int i = 0; i < Rules.DeckCount; i++)
         {
             for (int s = 0; s < 4; s++)
             {
@@ -66,9 +73,12 @@
         TrueCount = 0;
 
     }
-    public void CheckIfNewShuffleIsNeeded()
+    public void CheckIfNewShuffleIsNeeded(int cardsNeeded = 0)
     {
-        if (DeckCards.Count < 15)
+        if (cardsNeeded < 0)
+            throw new ArgumentOutOfRangeException(nameof(cardsNeeded));
+
+        if (DeckCards.Count < Math.Max(Rules.ReshuffleThreshold, cardsNeeded))
         {
             ShuffleDeck();
         }

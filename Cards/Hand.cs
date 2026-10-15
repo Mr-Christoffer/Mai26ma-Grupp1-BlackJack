@@ -45,6 +45,29 @@ class Hand
 
             return total;
         }
-  
-}}
+    }
 
+    public bool IsSoft
+    {
+        get
+        {
+            int hardTotal = 0;
+            bool hasAce = false;
+
+            foreach (Card card in CardsOnHand)
+            {
+                if (card.Rank == Rank.Ace)
+                {
+                    hasAce = true;
+                    hardTotal++;
+                }
+                else
+                {
+                    hardTotal += card.IndividualCardValue(card);
+                }
+            }
+
+            return hasAce && hardTotal + 10 <= BlackjackValue;
+        }
+    }
+}

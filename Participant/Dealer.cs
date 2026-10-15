@@ -1,11 +1,15 @@
 class Dealer : Participant
 {
     private const int DealerStandsOn = 17;
+    private readonly RuleSet rules;
 
+    public RuleSet Rules => rules;
     public bool HoleCardVisible { get; private set; }
 
-    public Dealer() : base("Dealer")
+    public Dealer(RuleSet? rules = null) : base("Dealer")
     {
+        this.rules = rules ?? RuleSet.Default;
+        this.rules.Validate();
     }
 
     public void ShowHoleCard()
@@ -18,7 +22,8 @@ class Dealer : Participant
 
     public bool ShouldHit()
     {
-        return Score < DealerStandsOn;
+        return Score < DealerStandsOn ||
+               (Score == DealerStandsOn && Hand.IsSoft && rules.DealerHitsSoft17);
     }
     
     public override void NewRound(Deck deck)
