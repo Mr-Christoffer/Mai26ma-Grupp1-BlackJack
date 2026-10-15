@@ -36,18 +36,35 @@ internal sealed class GameTableUI
         int selectedGameOption = 0;
         int selectedMenuOption = 0;
         bool sideMenuActive = false;
-        bool bettingMode = false;
-        bool pendingBlackjackAdvance = players[0].HasBlackjack;
+        bool bettingMode = true;
+        bool betsComplete = false;
+        bool pendingBlackjackAdvance = false;
         bool playing = true;
         GameTableAction action = GameTableAction.ReturnToMainMenu;
-        string? notice = pendingBlackjackAdvance
-            ? NaturalBlackjackNotice(players[0])
-            : null;
-        DateTime noticeUntil = pendingBlackjackAdvance
-            ? DateTime.UtcNow.AddMilliseconds(BlackjackNoticeDurationMs)
-            : DateTime.MinValue;
+        string? notice = $"{players[0].Name.ToUpperInvariant()}: SATSA FÖRST – ENTER LÄGGER MARKER, ESC BEKRÄFTAR";
+        DateTime noticeUntil = DateTime.MinValue;
+        statuses[0] = "SATSAR";
 
-        statuses[0] = pendingBlackjackAdvance ? "BLACKJACK" : "DIN TUR";
+        void FinishBetting()
+        {
+            betsComplete = true;
+            bettingMode = false;
+            currentPlayerIndex = 0;
+            selectedGameOption = 0;
+            notice = null;
+
+            // Cards were dealt already; revealing them is handled by BuildTable.
+            for (int i = 0; i < players.Count; i++)
+                statuses[i] = "VÄNTAR";
+
+            pendingBlackjackAdvance = players[0].HasBlackjack;
+            statuses[0] = pendingBlackjackAdvance ? "BLACKJACK" : "DIN TUR";
+            if (pendingBlackjackAdvance)
+            {
+                notice = NaturalBlackjackNotice(players[0]);
+                noticeUntil = DateTime.UtcNow.AddMilliseconds(BlackjackNoticeDurationMs);
+            }
+        }
 
         void AdvancePlayer()
         {
@@ -86,7 +103,7 @@ internal sealed class GameTableUI
                         DrawTable(BuildTable(
                             round, statuses, notice, selectedGameOption,
                             selectedMenuOption, sideMenuActive,
-                            roundFinished: false, bettingMode: bettingMode));
+                            roundFinished: false, bettingMode: bettingMode, cardsFaceDown: !betsComplete));
                         while (playing && !saveRequested)
                         {
 
@@ -107,19 +124,56 @@ internal sealed class GameTableUI
                                     DrawTable(BuildTable(
                                         round, statuses, notice, selectedGameOption,
                                         selectedMenuOption, sideMenuActive,
-                                        roundFinished: false, bettingMode: bettingMode));
+                                        roundFinished: false, bettingMode: bettingMode, cardsFaceDown: !betsComplete));
                                 continue;
                             }
 
                             if (key == ConsoleKey.NoName)
                                 continue;
 
+                            if (!betsComplete)
+                            {
+                                Player bettingPlayer = players[currentPlayerIndex];
+                                if (key == ConsoleKey.LeftArrow ||
+                                    key == ConsoleKey.RightArrow ||
+                                    key == ConsoleKey.Enter ||
+                                    key == ConsoleKey.Backspace)
+                                {
+                                    BettingUI.HandleKey(key, bettingPlayer);
+                                }
+                                else if (key == ConsoleKey.Escape ||
+                                         key == ConsoleKey.UpArrow ||
+                                         key == ConsoleKey.DownArrow)
+                                {
+                                    // Confirm the current player's bet before proceeding.
+                                    if (bettingPlayer.CurrentBet > 0)
+                                    {
+                                        statuses[currentPlayerIndex] = "SATSAT";
+                                        currentPlayerIndex++;
+                                        if (currentPlayerIndex == players.Count)
+                                            FinishBetting();
+                                        else
+                                        {
+                                            statuses[currentPlayerIndex] = "SATSAR";
+                                            notice = $"{players[currentPlayerIndex].Name.ToUpperInvariant()}: SATSA FÖRST – ENTER LÄGGER MARKER, ESC BEKRÄFTAR";
+                                        }
+                                    }
+                                    else
+                                        notice = "DU MÅSTE SATSA MINST EN MARKER FÖRST!";
+                                }
+
+                                DrawTable(BuildTable(
+                                    round, statuses, notice, selectedGameOption,
+                                    selectedMenuOption, sideMenuActive,
+                                    roundFinished: false, bettingMode: bettingMode, cardsFaceDown: !betsComplete));
+                                continue;
+                            }
+
                             if (bettingMode)
                             {
-                                if (key == ConsoleKey.Escape)
-                                    bettingMode = false;
-                                else if (key == ConsoleKey.UpArrow ||
-                                         key == ConsoleKey.DownArrow)
+                                if (key == ConsoleKey.Escape ||
+                                    key == ConsoleKey.UpArrow ||
+                                    key == ConsoleKey.DownArrow)
                                     bettingMode = false;
                                 else if (key == ConsoleKey.LeftArrow ||
                                          key == ConsoleKey.RightArrow ||
@@ -132,7 +186,7 @@ internal sealed class GameTableUI
                                     DrawTable(BuildTable(
                                         round, statuses, notice, selectedGameOption,
                                         selectedMenuOption, sideMenuActive,
-                                        roundFinished: false, bettingMode: bettingMode));
+                                        roundFinished: false, bettingMode: bettingMode, cardsFaceDown: !betsComplete));
                                     continue;
                                 }
                             }
@@ -203,11 +257,16 @@ internal sealed class GameTableUI
                                     }
                                     else if (selectedGameOption == 2)
                                     {
-                                        bettingMode = true;
+                                        notice = "INSATSEN ÄR REDAN BEKRÄFTAD FÖR DENNA RUNDA.";
                                     }
                                     else
                                     {
                                         Player player = players[currentPlayerIndex];
+                                        if (player.CurrentBet <= 0)
+                                        {
+                                            notice = "DU MÅSTE SATSA INNAN DU KAN SPELA!";
+                                            break;
+                                        }
                                         if (selectedGameOption == 0)
                                             player.ReceiveCard(round.Deck);
 
@@ -227,7 +286,7 @@ internal sealed class GameTableUI
                                 DrawTable(BuildTable(
                                     round, statuses, notice, selectedGameOption,
                                     selectedMenuOption, sideMenuActive,
-                                    roundFinished: false, bettingMode: bettingMode));
+                                    roundFinished: false, bettingMode: bettingMode, cardsFaceDown: !betsComplete));
                         }
                     }
 
@@ -394,7 +453,8 @@ internal sealed class GameTableUI
         int selectedMenuOption,
         bool sideMenuActive,
         bool roundFinished,
-        bool bettingMode)
+        bool bettingMode,
+        bool cardsFaceDown = false)
     {
         const int tableHeight = TableHeight - 3;
         var layout = new Layout("Root")
@@ -407,7 +467,7 @@ internal sealed class GameTableUI
             new Layout("PlayerActions").Size(3));
         layout["BlackjackTable"].Update(
             ui.BuildBlackjackTable(
-                round.Players, round.Dealer, tableHeight, notice, statuses));
+                round.Players, round.Dealer, tableHeight, notice, statuses, cardsFaceDown));
         layout["PlayerActions"].Update(ui.BuildPlayerActions(
             GameMessages.GameOptions, selectedGameOption,
             sideMenuActive, roundFinished, bettingMode));

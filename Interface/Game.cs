@@ -43,7 +43,6 @@ public class Game
                     break;
             }
         }
-
     }
 
     private void StartNewGame()
@@ -73,10 +72,16 @@ public class Game
         while (true)
         {
             Round round = new(roundNumber++, players, dealer, deck, rules);
+            // Deal cards now; the table shows only their backs until betting is confirmed.
             round.StartRound();
-
             GameTableAction action = gameTable.PlayRound(
                 round, playerSessions.SaveGame);
+            if (action != GameTableAction.RoundCompleted)
+            {
+                // Return unplayed bets when leaving an unfinished round.
+                foreach (Player player in players)
+                    player.CancelBet();
+            }
             if (action == GameTableAction.RoundCompleted)
             {
                 round.EndRound();
