@@ -8,12 +8,26 @@ statistics between program runs.
 
 - Play repeated rounds with one to five named players.
 - Load each returning player's wins, losses, and pushes.
-- Deal from a 52-card deck and reshuffle the discard pile when fewer than 15 cards remain.
-- Apply the dealer's fixed rule: hit on 16 or less and stand on 17 or more.
+- Deal from a configurable number of decks and reshuffle below the configured card threshold.
+- Configure whether the dealer hits on soft 17 and whether a natural blackjack beats a
+  three-card 21.
 - Save cumulative player statistics as JSON for the game and as a readable `player-results.txt`
   report for players.
 
-This is the basic game: it does not use bets, chips, insurance, doubling down, or splitting pairs.
+The house rules are read from `blackjack-rules.json` in the working directory, or from beside
+the application if the working-directory file is absent. The file is copied beside the built
+application and can be edited without recompiling. If no file is found, the game displays a
+notice on its main menu and uses the defaults: dealer stands on soft 17, six decks,
+reshuffle below 15 remaining cards, and natural blackjack beats a three-card 21.
+
+The JSON properties are `DealerHitsSoft17` (boolean), `DeckCount` (1–8),
+`ReshuffleThreshold` (1 through the configured total deck size), and
+`NaturalBlackjackBeatsThreeCard21` (boolean). Invalid JSON or values are reported as errors
+rather than silently ignored.
+
+To run the house-rule tests, use `dotnet test Test/Blackjack.Config.Tests.csproj`.
+
+This is the basic game: it does not use insurance, doubling down, or splitting pairs.
 
 ## Project responsibilities
 

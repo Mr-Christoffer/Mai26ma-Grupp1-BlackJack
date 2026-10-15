@@ -162,10 +162,18 @@ public partial class ConsoleUi
     }
 
     // Displays the Blackjack rules.
-    public void ShowRules()
+    public void ShowRules(RuleSet? ruleSet = null)
     {
+        RuleSet rules = ruleSet ?? RuleSet.Default;
+        string softSeventeenRule = rules.DealerHitsSoft17
+            ? "Givaren köper på mjuk 17."
+            : "Givaren stannar på mjuk 17.";
+        string naturalVersusThreeCardRule = rules.NaturalBlackjackBeatsThreeCard21
+            ? "Naturlig 21 slår 21 med tre kort."
+            : "Naturlig 21 ger oavgjort mot 21 med tre kort.";
+
         AnsiConsole.Clear();
-        var rules = new Panel(new Rows(
+        var rulesPanel = new Panel(new Rows(
             new Align(new Markup("[bold gold1]♠ BLACKJACK 21 ♠[/]"), HorizontalAlignment.Center),
             new Align(new Markup("[italic green3]Tur kan inte kompileras.[/]"), HorizontalAlignment.Center),
             new Rule("[gold1]♥ SPELREGLER ♥[/]").RuleStyle(Color.Gold1),
@@ -179,13 +187,15 @@ public partial class ConsoleUi
                 "[bold gold1]DIN TUR[/]\n" +
                 "[white]♠ Köpa – Ta ett nytt kort.\n♥ Stanna – Avsluta din tur.\n♦ Satsa – Välj och placera marker.\nÖver 21 innebär att du spräcker och förlorar.[/]\n\n" +
                 "[bold gold1]GIVARENS TUR[/]\n" +
-                "[white]Givaren visar sitt dolda kort.\nGivaren köper på 16 eller lägre.\nGivaren stannar på 17 eller högre, även på mjuk 17.[/]\n\n" +
+                $"[white]Givaren visar sitt dolda kort.\nGivaren köper på 16 eller lägre.\nGivaren stannar på hård 17 eller högre.\n{softSeventeenRule}[/]\n\n" +
                 "[bold gold1]VINST OCH FÖRLUST[/]\n" +
-                "[white]Givaren spräcker = spelaren vinner, om spelaren inte redan har spräckt.\nAnnars vinner högsta handen.\nLika poäng innebär oavgjort.\nNaturlig 21 slår vanlig 21.\nTvå naturliga 21 ger oavgjort.[/]"),
+                $"[white]Givaren spräcker = spelaren vinner, om spelaren inte redan har spräckt.\nAnnars vinner högsta handen.\nLika poäng innebär oavgjort.\n{naturalVersusThreeCardRule}\nTvå naturliga 21 ger oavgjort.[/]\n\n" +
+                "[bold gold1]HUSREGLER[/]\n" +
+                $"[white]Antal lekar: {rules.DeckCount}.\nBlanda om när färre än {rules.ReshuffleThreshold} kort återstår.[/]"),
             new Text(""),
             new Align(new Markup("[grey]Tryck på valfri tangent för att återgå.[/]"), HorizontalAlignment.Center)))
             .Border(BoxBorder.Rounded).BorderColor(Color.Gold1).Expand();
-        AnsiConsole.Write(CenterPanel(rules));
+        AnsiConsole.Write(CenterPanel(rulesPanel));
         Console.ReadKey(true);
     }
 

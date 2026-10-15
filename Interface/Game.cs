@@ -3,9 +3,14 @@ public class Game
     private readonly ConsoleUi ui = new();
     private readonly PlayerSessionService playerSessions;
     private readonly GameTableUI gameTable;
+    private readonly RuleSet rules;
+    private readonly string? ruleConfigurationNotice;
 
     public Game()
     {
+        string? notice = null;
+        rules = RuleSet.LoadFromDefaultLocation(message => notice = message);
+        ruleConfigurationNotice = notice;
         playerSessions = new PlayerSessionService(new GameStorage(), ui);
         gameTable = new GameTableUI(ui);
     }
@@ -13,9 +18,12 @@ public class Game
     public void Run()
     {
         bool running = true;
+        bool showRuleNotice = ruleConfigurationNotice is not null;
         while (running)
         {
-            string choice = ui.ShowMenu();
+            string choice = ui.ShowMenu(
+                showRuleNotice ? ruleConfigurationNotice : null);
+            showRuleNotice = false;
             switch (choice)
             {
                 case GameMessages.NewGame:
@@ -25,7 +33,7 @@ public class Game
                     LoadGame();
                     break;
                 case GameMessages.ShowRules:
-                    ui.ShowRules();
+                    ui.ShowRules(rules);
                     break;
                 case GameMessages.ShowCredits:
                     ui.ShowCredits();
@@ -56,15 +64,15 @@ public class Game
     private void PlayGame(List<Player> players)
     {
         gameTable.ResetSession();
-        Deck deck = new();
+        Deck deck = new(rules);
         deck.CreateDeck();
         deck.ShuffleDeck();
-        Dealer dealer = new();
+        Dealer dealer = new(rules);
         int roundNumber = 1;
 
         while (true)
         {
-            Round round = new(roundNumber++, players, dealer, deck);
+            Round round = new(roundNumber++, players, dealer, deck, rules);
             round.StartRound();
 
             GameTableAction action = gameTable.PlayRound(
