@@ -173,6 +173,7 @@ public partial class ConsoleUi
             : "Naturlig 21 ger oavgjort mot 21 med tre kort.";
 
         AnsiConsole.Clear();
+        Console.Write("\u001b[?25l");
         var rulesPanel = new Panel(new Rows(
             new Align(new Markup("[bold gold1]♠ BLACKJACK 21 ♠[/]"), HorizontalAlignment.Center),
             new Align(new Markup("[italic green3]Tur kan inte kompileras.[/]"), HorizontalAlignment.Center),
@@ -196,13 +197,16 @@ public partial class ConsoleUi
             new Align(new Markup("[grey]Tryck på valfri tangent för att återgå.[/]"), HorizontalAlignment.Center)))
             .Border(BoxBorder.Rounded).BorderColor(Color.Gold1).Expand();
         AnsiConsole.Write(CenterPanel(rulesPanel));
+        Console.Write("\u001b[?25l");
         Console.ReadKey(true);
+        Console.Write("\u001b[?25l");
     }
 
     // Displays centered contributors.
     public void ShowCredits()
     {
         AnsiConsole.Clear();
+        Console.Write("\u001b[?25l"); // Dölj terminalmarkören.
 
         // Align names and roles in two columns.
         var credits = new Grid();
@@ -227,7 +231,9 @@ public partial class ConsoleUi
             .Expand();
 
         AnsiConsole.Write(CenterPanel(panel));
+        Console.Write("\u001b[?25l"); // Håll markören dold även efter att panelen ritats.
         Console.ReadKey(true);
+        Console.Write("\u001b[?25l");
     }
 
     // Original player-count method kept for compatibility.

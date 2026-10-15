@@ -13,13 +13,18 @@ internal sealed class GameTableUI
     private const int BlackjackNoticeDurationMs = 2400;
 
     private readonly ConsoleUi ui;
+    private bool tableScreenActive;
 
     public GameTableUI(ConsoleUi ui)
     {
         this.ui = ui;
     }
 
-    public void ResetSession() => BettingUI.Reset();
+    public void ResetSession()
+    {
+        CloseTableScreen();
+        BettingUI.Reset();
+    }
 
     public GameTableAction PlayRound(
         Round round,
@@ -71,28 +76,19 @@ internal sealed class GameTableUI
         }
 
         ui.CheckWidth(TableHeight);
-        AnsiConsole.Clear();
+        OpenTableScreen();
         try
         {
-            Console.CursorVisible = false;
             while (playing)
             {
                 bool saveRequested = false;
-                AnsiConsole.Live(BuildTable(
-                    round, statuses, notice, selectedGameOption,
-                    selectedMenuOption, sideMenuActive, roundFinished: false,
-                    bettingMode: bettingMode))
-                    .AutoClear(false)
-                    .Start(context =>
-                    {
-                        context.Refresh();
+                {
+                        DrawTable(BuildTable(
+                            round, statuses, notice, selectedGameOption,
+                            selectedMenuOption, sideMenuActive,
+                            roundFinished: false, bettingMode: bettingMode));
                         while (playing && !saveRequested)
                         {
-                            context.UpdateTarget(BuildTable(
-                                round, statuses, notice, selectedGameOption,
-                                selectedMenuOption, sideMenuActive,
-                                roundFinished: false, bettingMode: bettingMode));
-                            context.Refresh();
 
                             int timeout = pendingBlackjackAdvance
                                 ? Math.Max(1, (int)(noticeUntil - DateTime.UtcNow)
@@ -107,6 +103,11 @@ internal sealed class GameTableUI
                                 notice = null;
                                 pendingBlackjackAdvance = false;
                                 AdvancePlayer();
+                                if (playing)
+                                    DrawTable(BuildTable(
+                                        round, statuses, notice, selectedGameOption,
+                                        selectedMenuOption, sideMenuActive,
+                                        roundFinished: false, bettingMode: bettingMode));
                                 continue;
                             }
 
@@ -127,7 +128,13 @@ internal sealed class GameTableUI
                                     BettingUI.HandleKey(key, players[currentPlayerIndex]);
 
                                 if (bettingMode)
+                                {
+                                    DrawTable(BuildTable(
+                                        round, statuses, notice, selectedGameOption,
+                                        selectedMenuOption, sideMenuActive,
+                                        roundFinished: false, bettingMode: bettingMode));
                                     continue;
+                                }
                             }
 
                             switch (key)
@@ -215,8 +222,14 @@ internal sealed class GameTableUI
                                     }
                                     break;
                             }
+
+                            if (playing && !saveRequested)
+                                DrawTable(BuildTable(
+                                    round, statuses, notice, selectedGameOption,
+                                    selectedMenuOption, sideMenuActive,
+                                    roundFinished: false, bettingMode: bettingMode));
                         }
-                    });
+                    }
 
                 if (saveRequested && saveGame(players))
                 {
@@ -225,10 +238,16 @@ internal sealed class GameTableUI
                 }
             }
         }
+        catch
+        {
+            CloseTableScreen();
+            throw;
+        }
         finally
         {
-            Console.CursorVisible = true;
-            AnsiConsole.Clear();
+            // Keep the same terminal screen for the result and the next round.
+            if (action == GameTableAction.ReturnToMainMenu)
+                CloseTableScreen();
         }
 
         return action;
@@ -249,30 +268,21 @@ internal sealed class GameTableUI
             Environment.NewLine, "  •  ", StringComparison.Ordinal);
 
         ui.CheckWidth(TableHeight);
+        OpenTableScreen();
         try
         {
-            Console.CursorVisible = false;
             bool finished = false;
             while (!finished)
             {
                 bool saveRequested = false;
-                AnsiConsole.Live(BuildTable(
-                    round, statuses, notice, selectedGameOption: 0,
-                    selectedMenuOption: selectedMenuOption,
-                    sideMenuActive: true, roundFinished: true,
-                    bettingMode: false))
-                    .AutoClear(false)
-                    .Start(context =>
-                    {
-                        context.Refresh();
+                {
+                        DrawTable(BuildTable(
+                            round, statuses, notice, selectedGameOption: 0,
+                            selectedMenuOption: selectedMenuOption,
+                            sideMenuActive: true,
+                            roundFinished: true, bettingMode: false));
                         while (!finished && !saveRequested)
                         {
-                            context.UpdateTarget(BuildTable(
-                                round, statuses, notice, selectedGameOption: 0,
-                                selectedMenuOption: selectedMenuOption,
-                                sideMenuActive: true,
-                                roundFinished: true, bettingMode: false));
-                            context.Refresh();
 
                             ConsoleKey key = ReadTableKey();
                             if (key == ConsoleKey.UpArrow)
@@ -308,15 +318,14 @@ internal sealed class GameTableUI
 
                             if (!finished && !saveRequested)
                             {
-                                context.UpdateTarget(BuildTable(
+                                DrawTable(BuildTable(
                                     round, statuses, notice, selectedGameOption: 0,
                                     selectedMenuOption: selectedMenuOption,
                                     sideMenuActive: true,
                                     roundFinished: true, bettingMode: false));
-                                context.Refresh();
                             }
                         }
-                    });
+                    }
 
                 if (saveRequested && saveGame(players))
                 {
@@ -325,13 +334,56 @@ internal sealed class GameTableUI
                 }
             }
         }
+        catch
+        {
+            CloseTableScreen();
+            throw;
+        }
         finally
         {
-            Console.CursorVisible = true;
-            AnsiConsole.Clear();
+            // Starting a new round redraws in place instead of flashing.
+            if (action != GameTableAction.StartNewRound)
+                CloseTableScreen();
         }
 
         return action;
+    }
+
+    // Use a fixed screen instead of Spectre.Live, which can move the cursor
+    // and cause flicker when its display region is recreated.
+    private void OpenTableScreen()
+    {
+        if (tableScreenActive)
+            return;
+
+        Console.Write("\u001b[?1049h\u001b[?25l\u001b[H\u001b[2J");
+        Console.Out.Flush();
+        tableScreenActive = true;
+    }
+
+    private void CloseTableScreen()
+    {
+        if (!tableScreenActive)
+            return;
+
+        Console.Write("\u001b[?25h\u001b[?1049l");
+        Console.Out.Flush();
+        tableScreenActive = false;
+    }
+
+    private static void DrawTable(Layout layout)
+    {
+        // Synchronize the frame where supported; do not clear between frames.
+        Console.Write("\u001b[?2026h\u001b[H\u001b[?25l");
+        try
+        {
+            AnsiConsole.Write(layout);
+        }
+        finally
+        {
+            Console.Write("\u001b[?2026l\u001b[?25l");
+            Console.Out.Flush();
+        }
     }
 
     private Layout BuildTable(
@@ -381,10 +433,8 @@ internal sealed class GameTableUI
             if (Console.WindowWidth < ConsoleUi.MinWidth ||
                 Console.WindowHeight < ConsoleUi.MinHeight)
             {
-                Console.CursorVisible = true;
                 ui.CheckWidth();
-                ui.HardClear(check: false);
-                Console.CursorVisible = false;
+                Console.Write("\u001b[?25l");
                 return ConsoleKey.NoName;
             }
 

@@ -1,4 +1,7 @@
+using System;
+using System.Collections.Generic;
 using Spectre.Console;
+using Spectre.Console.Rendering;
 
 public partial class ConsoleUi
 {
@@ -10,98 +13,134 @@ public partial class ConsoleUi
             savedResults, StringComparer.OrdinalIgnoreCase);
         List<string> names = new(results.Keys);
         names.Sort(StringComparer.OrdinalIgnoreCase);
+
+        if (names.Count == 0)
+            return null;
+
         int selected = 0;
         bool confirmingDelete = false;
         string? error = null;
         string? selectedName = null;
         bool finished = false;
 
-        AnsiConsole.Clear();
-        AnsiConsole.Live(BuildSavedPlayersMenu(
-            names, results, selected, confirmingDelete, error))
-            .Start(context =>
+        // Draw on the alternate terminal screen without Spectre.Console.Live.
+        // This avoids Live's cursor repositioning and scrolling behaviour.
+        bool useAnsi = !Console.IsOutputRedirected;
+        if (useAnsi)
+            Console.Write("\u001b[?1049h\u001b[?25l");
+
+        try
+        {
+            void DrawMenu()
             {
-                context.Refresh();
-                while (!finished)
+                // Synchronized output prevents partially painted frames in
+                // terminals supporting DEC synchronized updates.
+                if (useAnsi)
+                    Console.Write("\u001b[?2026h\u001b[H\u001b[2J\u001b[?25l");
+
+                try
                 {
-                    ConsoleKey key = Console.ReadKey(true).Key;
-                    if (confirmingDelete)
-                    {
-                        if (key == ConsoleKey.Enter ||
-                            key == ConsoleKey.Y ||
-                            key == ConsoleKey.J)
-                        {
-                            string name = names[selected];
-                            if (deletePlayer(name))
-                            {
-                                results.Remove(name);
-                                names.RemoveAt(selected);
-                                if (names.Count == 0)
-                                {
-                                    finished = true;
-                                    break;
-                                }
+                    AnsiConsole.Write(BuildSavedPlayersMenu(
+                        names, results, selected, confirmingDelete, error));
+                }
+                finally
+                {
+                    if (useAnsi)
+                        Console.Write("\u001b[?2026l\u001b[?25l");
+                }
+            }
 
-                                selected = Math.Min(selected, names.Count - 1);
-                            }
-                            else
-                            {
-                                error = GameMessages.DeleteSavedPlayerError;
-                            }
-                        }
+            DrawMenu();
+            while (!finished)
+            {
+                ConsoleKey key = Console.ReadKey(true).Key;
+                bool changed = false;
 
-                        confirmingDelete = false;
-                    }
-                    else
+                if (confirmingDelete)
+                {
+                    if (key == ConsoleKey.Enter || key == ConsoleKey.Y || key == ConsoleKey.J)
                     {
-                        if (key == ConsoleKey.UpArrow)
-                            selected = (selected - 1 + names.Count) % names.Count;
-                        else if (key == ConsoleKey.DownArrow)
-                            selected = (selected + 1) % names.Count;
-                        else if (key == ConsoleKey.Delete)
-                            confirmingDelete = true;
-                        else if (key == ConsoleKey.Escape)
+                        string name = names[selected];
+                        if (deletePlayer(name))
                         {
-                            finished = true;
-                            break;
-                        }
-                        else if (key == ConsoleKey.Enter)
-                        {
-                            selectedName = names[selected];
-                            finished = true;
-                            break;
+                            results.Remove(name);
+                            names.RemoveAt(selected);
+                            if (names.Count == 0)
+                            {
+                                finished = true;
+                                break;
+                            }
+
+                            selected = Math.Min(selected, names.Count - 1);
+                            error = null;
                         }
                         else
                         {
-                            continue;
+                            error = GameMessages.DeleteSavedPlayerError;
                         }
+                        confirmingDelete = false;
+                        changed = true;
                     }
-
-                    context.UpdateTarget(
-                        BuildSavedPlayersMenu(
-                            names, results, selected, confirmingDelete, error));
-                    context.Refresh();
+                    else if (key == ConsoleKey.Escape || key == ConsoleKey.N)
+                    {
+                        confirmingDelete = false;
+                        changed = true;
+                    }
                 }
-            });
+                else
+                {
+                    if (key == ConsoleKey.UpArrow)
+                    {
+                        selected = (selected - 1 + names.Count) % names.Count;
+                        changed = true;
+                    }
+                    else if (key == ConsoleKey.DownArrow)
+                    {
+                        selected = (selected + 1) % names.Count;
+                        changed = true;
+                    }
+                    else if (key == ConsoleKey.Delete)
+                    {
+                        confirmingDelete = true;
+                        changed = true;
+                    }
+                    else if (key == ConsoleKey.Escape)
+                    {
+                        finished = true;
+                        break;
+                    }
+                    else if (key == ConsoleKey.Enter)
+                    {
+                        selectedName = names[selected];
+                        finished = true;
+                        break;
+                    }
+                }
+
+                if (changed)
+                    DrawMenu();
+            }
+        }
+        finally
+        {
+            if (useAnsi)
+                Console.Write("\u001b[?25h\u001b[?1049l");
+        }
 
         return selectedName;
     }
 
-    private static Spectre.Console.Rendering.IRenderable BuildSavedPlayersMenu(
+    private static IRenderable BuildSavedPlayersMenu(
         List<string> names,
         IReadOnlyDictionary<string, PlayerStatistics> results,
         int selected,
         bool confirmingDelete,
         string? error)
     {
-        List<Spectre.Console.Rendering.IRenderable> rows = new()
+        List<IRenderable> rows = new()
         {
-            new Align(
-                new Markup(GameMessages.GameTitleMarkup),
-                HorizontalAlignment.Center),
-            new Align(
-                new Markup(GameMessages.GameSubtitleMarkup),
-                HorizontalAlignment.Center),
+            new Align(new Markup(GameMessages.GameTitleMarkup), HorizontalAlignment.Center),
+            new Align(new Markup(GameMessages.GameSubtitleMarkup), HorizontalAlignment.Center),
             new Text(""),
             new Rule(GameMessages.SavedPlayersTitleMarkup).RuleStyle(Color.Gold1),
             new Align(
@@ -154,12 +193,8 @@ public partial class ConsoleUi
             string prompt = string.Format(
                 GameMessages.DeleteSavedPlayerPromptFormat,
                 Markup.Escape(names[selected]));
-            rows.Add(new Align(
-                new Markup($"[bold red]{prompt}[/]"),
-                HorizontalAlignment.Center));
-            rows.Add(new Align(
-                new Markup("[white]Enter: Ja     Esc: Nej[/]"),
-                HorizontalAlignment.Center));
+            rows.Add(new Align(new Markup($"[bold red]{prompt}[/]"), HorizontalAlignment.Center));
+            rows.Add(new Align(new Markup("[white]Enter: Ja     Esc: Nej[/]"), HorizontalAlignment.Center));
         }
         else
         {
@@ -171,21 +206,21 @@ public partial class ConsoleUi
                 HorizontalAlignment.Center));
         }
 
-        if (error is not null)
-            rows.Add(new Align(
-                new Markup($"[bold red]{Markup.Escape(error)}[/]"),
-                HorizontalAlignment.Center));
+        // Reserve a line for errors, so the panel height does not change.
+        rows.Add(new Align(
+            new Markup(error is null ? " " : $"[bold red]{Markup.Escape(error)}[/]"),
+            HorizontalAlignment.Center));
 
         rows.Add(new Rule().RuleStyle(Color.Gold1));
-        var panel = new Panel(new Rows(rows))
-            .Border(BoxBorder.Rounded)
-            .BorderColor(Color.Gold1)
-            .Expand();
         int terminalWidth = Math.Max(1, Console.WindowWidth);
-        int panelWidth = Math.Min(72, terminalWidth);
-        int left = (terminalWidth - panelWidth) / 2;
-        return new Padder(panel)
-            .PadLeft(left)
-            .PadRight(terminalWidth - panelWidth - left);
+        // Leave a spare column to prevent terminal auto-wrap at the right edge.
+        int panelWidth = Math.Max(1, Math.Min(72, terminalWidth - 1));
+        int left = Math.Max(0, (terminalWidth - panelWidth) / 2);
+        var panel = new Panel(new Rows(rows))
+     .Border(BoxBorder.Rounded)
+     .BorderColor(Color.Gold1);
+
+        panel.Width = panelWidth;
+        return new Padder(panel).PadLeft(left);
     }
 }

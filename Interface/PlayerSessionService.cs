@@ -34,9 +34,13 @@ internal sealed class PlayerSessionService
             string playerName;
             while (true)
             {
-                playerName = ui.AskPlayerNameCentered(i);
+                string? enteredName = ui.AskPlayerNameCentered(i);
+                if (enteredName is null)
+                    return null; // Esc: cancel and return to the main menu.
+
+                playerName = enteredName.Trim();
                 if (string.IsNullOrWhiteSpace(playerName))
-                    playerName = GameMessages.PlayerName(i);
+                    continue; // The input screen displays the Swedish error.
 
                 if (usedNames.Add(playerName))
                     break;
