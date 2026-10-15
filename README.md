@@ -23,9 +23,8 @@ reshuffle below 15 remaining cards, and natural blackjack beats a three-card 21.
 The JSON properties are `DealerHitsSoft17` (boolean), `DeckCount` (1–8),
 `ReshuffleThreshold` (1 through the configured total deck size), and
 `NaturalBlackjackBeatsThreeCard21` (boolean). Invalid JSON or values are reported as errors
-rather than silently ignored.
-
-To run the house-rule tests, use `dotnet test Test/Blackjack.Config.Tests.csproj`.
+rather than silently ignored. Edit these values in `blackjack-rules.json` and restart the game
+for the changes to take effect; rebuilding is not required.
 
 This is the basic game: it does not use insurance, doubling down, or splitting pairs.
 
