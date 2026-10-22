@@ -16,6 +16,7 @@ classDiagram
         -PlayerSessionService playerSessions
         -GameTableUI gameTable
         -RuleSet rules
+        -string ruleConfigurationNotice
         +Game()
         +Run()
         -StartNewGame()
@@ -35,6 +36,9 @@ classDiagram
         +ShowCenteredMessage(message)
         +ShowBlackjackTable(players, dealer)
         +ShowBettingMode(...)
+        +BuildGameMenu(...) Panel
+        +BuildPlayerActions(...) Panel
+        +BuildBlackjackTable(...) Panel
     }
     class GameTableUI {
         -ConsoleUi ui
@@ -43,6 +47,7 @@ classDiagram
         +ResetSession()
         +PlayRound(round, saveGame) GameTableAction
         +ShowRoundEndMenu(round, summary, saveGame) GameTableAction
+        -DetectRefilledShoe(deck) bool
     }
     class GameTableAction {
         <<enumeration>>
@@ -78,6 +83,7 @@ classDiagram
         +string FileName$
         +int MinDeckCount$
         +int MaxDeckCount$
+        +int DefaultReshuffleThreshold$
         +bool DealerHitsSoft17
         +int DeckCount
         +int ReshuffleThreshold
@@ -96,6 +102,7 @@ classDiagram
         +RuleSet Rules
         +IReadOnlyDictionary Outcomes
         +int StartingHandSize$
+        -int MaxCardsPerHand$
         +StartRound()
         +RevealInitialCards()
         +RevealCard(card)
@@ -168,6 +175,8 @@ classDiagram
         +ShuffleDeck()
         +CheckIfNewShuffleIsNeeded(cardsNeeded)
         +DealCard(faceUp) Card
+        -PlaceCutCard()
+        -EnsureCardAvailable()
     }
     class CardCounter {
         +int RunningCount
@@ -315,7 +324,7 @@ classDiagram
 | `Player` | Tracks a player's results and forwards chips, bets, and insurance to its private `Wallet`. | Console interaction or saved-file management. |
 | `Wallet` | Tracks chips, bets, and insurance and settles them based on an outcome. | Statistics, console interaction, or deciding the outcome. |
 | `Dealer` | Represents the dealer, reveals the hole card, and decides whether to hit based on the rules. | Choosing player actions or rendering cards. |
-| `Deck` | Creates, shuffles, and deals cards, manages discards and cut-card behavior, and owns the card counter. | Hand scoring or deciding winners. |
+| `Deck` | Creates, shuffles, and deals cards, manages discards and the cut card, reshuffles the discard pile if the shoe runs empty (it never creates new cards mid-game), and owns the card counter. | Hand scoring or deciding winners. |
 | `CardCounter` | Tracks running and true counts of cards that have become visible. | Changing game outcomes or displaying the count. |
 | `Hand` | Holds cards, calculates hand score and softness, and owns `BlackjackValue` and `AceReduction`. | Deciding who wins. |
 | `Card` | Stores suit and rank and provides a card's base value. | Scoring a complete hand. |
@@ -331,8 +340,9 @@ classDiagram
 3. The player chooses a new or saved game in `ConsoleUi`. `PlayerSessionService` loads saved
    statistics through `GameStorage` and creates the selected `Player` objects.
 4. For a game, `Game` creates a `Deck` and `Dealer` with the same rules. For each round it
-   creates a `Round` and starts the round, which resets hands, checks the shoe, and deals the
-   initial cards face down.
+   creates a `Round` and starts the round, which resets hands, reshuffles if the cut card was
+      reached or the shoe cannot cover the worst case for all participants, and deals the
+      initial cards face down. The cut card never triggers a reshuffle mid-round.
 5. `GameTableUI` handles betting, then flips the cards and calls `Round.RevealInitialCards()`
    so the card counter only counts visible cards. It then handles optional insurance and
    player choices, using `ConsoleUi` and `BettingUI` to display the table and process input.
