@@ -41,7 +41,7 @@ Each group member describes their own part in a separate file and links to it he
 
 ### 1. Interface
 
-*To be filled in by the group member responsible* - see [Interface.md](Interface.md).
+*To be filled in by the group member responsible*
 
 ### 2. Computer strategy
 
