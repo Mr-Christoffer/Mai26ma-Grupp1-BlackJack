@@ -12,8 +12,7 @@ statistics between program runs.
 - Save cumulative player statistics as JSON for the game and as a readable `player-results.txt`
   report for players.
 
-See [HouseRules.md](HouseRules.md) for details about the rule settings, the `RuleSet` class,
-and the `blackjack-rules.json` configuration file.
+  See Trello for our work process : https://trello.com/b/oAcGF39l/group1-blackjack
 
 This is the basic game: it does not use insurance, doubling down, or splitting pairs.
 
@@ -31,8 +30,36 @@ This is the basic game: it does not use insurance, doubling down, or splitting p
 application-data folder.
 On macOS, the save will typically be under ~/Library/Application Support/Mai26ma-Grupp1-BlackJack; on Windows, it’s under %LOCALAPPDATA%\Mai26ma-Grupp1-BlackJack.
 
+### Class diagram
+
 See [Uml.md](Uml.md) for the class diagram and more detail about each class's responsibility.
 The project's detailed requirements and user stories are in [UserStories.md](UserStories.md).
+
+## Individual assignments
+
+Each group member describes their own part in a separate file and links to it here.
+
+### 1. Interface
+
+*To be filled in by the group member responsible* - see [Interface.md](Interface.md).
+
+### 2. Computer strategy
+
+Not implemented.
+
+### 3. House rules and configuration (Sofia)
+
+Configurable house rules, cut card and reshuffling, and the house-rules tests.
+See [HouseRules.md](HouseRules.md).
+
+### 4. 
+
+*To be filled in by the group member responsible.*
+
+### 5. 
+
+*To be filled in by the group member responsible.*
+
 
 ## Run
 

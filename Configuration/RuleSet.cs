@@ -100,6 +100,6 @@ public sealed record RuleSet
         if (ReshuffleThreshold < DefaultReshuffleThreshold || ReshuffleThreshold > DeckCount * Deck.CardsPerDeck)
             throw new ArgumentOutOfRangeException(
                 nameof(ReshuffleThreshold),
-                "Blandningsgränsen måste vara minst 1 och får inte överstiga det totala antalet kort.");
+                $"Blandningsgränsen måste vara minst {DefaultReshuffleThreshold} och får inte överstiga det totala antalet kort.");
     }
 }
